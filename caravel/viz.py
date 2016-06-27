@@ -104,8 +104,13 @@ class BaseViz(object):
     def reassignments(self):
         pass
 
-    def get_url(self, **kwargs):
-        """Returns the URL for the viz"""
+    def get_url(self, for_cache_key=False, **kwargs):
+        """Returns the URL for the viz
+
+        :param for_cache_key: when getting the url as the identifier to hash
+            for the cache key
+        :type for_cache_key: boolean
+        """
         d = self.orig_form_data.copy()
         if 'json' in d:
             del d['json']
@@ -124,11 +129,13 @@ class BaseViz(object):
                     v = d.get(key)
                 if not isinstance(v, list):
                     v = [v]
-                for item in sorted(v):
+                for item in v:
                     od.add(key, item)
         href = Href(
             '/caravel/explore/{self.datasource.type}/'
             '{self.datasource.id}/'.format(**locals()))
+        if for_cache_key and 'force' in od:
+            del od['force']
         return href(od)
 
     def get_df(self, query_obj=None):
@@ -162,26 +169,28 @@ class BaseViz(object):
     def form_class(self):
         return FormFactory(self).get_form()
 
-    def query_filters(self):
+    def query_filters(self, is_having_filter=False):
         """Processes the filters for the query"""
         form_data = self.form_data
         # Building filters
         filters = []
+        field_prefix = 'flt' if not is_having_filter else 'having'
         for i in range(1, 10):
-            col = form_data.get("flt_col_" + str(i))
-            op = form_data.get("flt_op_" + str(i))
-            eq = form_data.get("flt_eq_" + str(i))
+            col = form_data.get(field_prefix + "_col_" + str(i))
+            op = form_data.get(field_prefix + "_op_" + str(i))
+            eq = form_data.get(field_prefix + "_eq_" + str(i))
             if col and op and eq:
                 filters.append((col, op, eq))
 
         # Extra filters (coming from dashboard)
         extra_filters = form_data.get('extra_filters')
-        if extra_filters:
+        if extra_filters and not is_having_filter:
             extra_filters = json.loads(extra_filters)
             for slice_filters in extra_filters.values():
                 for col, vals in slice_filters.items():
                     if col and vals:
-                        filters += [(col, 'in', ",".join(vals))]
+                        if col in self.datasource.filterable_column_names:
+                            filters += [(col, 'in', ",".join(vals))]
         return filters
 
     def query_obj(self):
@@ -208,7 +217,7 @@ class BaseViz(object):
         # for instance the extra where clause that applies only to Tables
         extras = {
             'where': form_data.get("where", ''),
-            'having': form_data.get("having", ''),
+            'having': self.query_filters(True) or form_data.get("having", ''),
             'time_grain_sqla': form_data.get("time_grain_sqla", ''),
             'druid_time_origin': form_data.get("druid_time_origin", ''),
         }
@@ -315,7 +324,7 @@ class BaseViz(object):
 
     @property
     def cache_key(self):
-        url = self.get_url(json="true", force="false")
+        url = self.get_url(for_cache_key=True, json="true", force="false")
         return hashlib.md5(url.encode('utf-8')).hexdigest()
 
     @property
@@ -341,16 +350,11 @@ class TableViz(BaseViz):
     fieldsets = ({
         'label': _("GROUP BY"),
         'description': _('Use this section if you want a query that aggregates'),
-        'fields': (
-            'groupby',
-            'metrics',
-        )
+        'fields': ('groupby', 'metrics')
     }, {
         'label': _("NOT GROUPED BY"),
         'description': _('Use this section if you want to query atomic rows'),
-        'fields': (
-            'all_columns',
-        )
+        'fields': ('all_columns', 'order_by_cols'),
     }, {
         'label': _("Options"),
         'fields': (
@@ -376,6 +380,7 @@ class TableViz(BaseViz):
         if fd.get('all_columns'):
             d['columns'] = fd.get('all_columns')
             d['groupby'] = []
+            d['orderby'] = [json.loads(t) for t in fd.get('order_by_cols', [])]
         return d
 
     def get_df(self, query_obj=None):
@@ -761,6 +766,7 @@ class BubbleViz(NVD3Viz):
             ('x_log_scale', 'y_log_scale'),
             ('show_legend', None),
             'max_bubble_size',
+            ('x_axis_label', 'y_axis_label'),
         )
     },)
 
@@ -925,8 +931,9 @@ class NVD3TimeSeriesViz(NVD3Viz):
             ('show_brush', 'show_legend'),
             ('rich_tooltip', 'y_axis_zero'),
             ('y_log_scale', 'contribution'),
-            ('x_axis_format', 'y_axis_format'),
             ('line_interpolation', 'x_axis_showminmax'),
+            ('x_axis_format', 'y_axis_format'),
+            ('x_axis_label', 'y_axis_label'),
         ),
     }, {
         'label': _('Advanced Analytics'),
@@ -1071,7 +1078,9 @@ class NVD3TimeSeriesBarViz(NVD3TimeSeriesViz):
             ('y_log_scale', 'contribution'),
             ('x_axis_format', 'y_axis_format'),
             ('line_interpolation', 'bar_stacked'),
-            ('x_axis_showminmax', None),
+            ('x_axis_showminmax', 'bottom_margin'),
+            ('x_axis_label', 'y_axis_label'),
+            ('reduce_x_ticks', 'show_controls'),
         ), }] + [NVD3TimeSeriesViz.fieldsets[2]]
 
 
@@ -1097,7 +1106,7 @@ class NVD3TimeSeriesStackedViz(NVD3TimeSeriesViz):
             ('rich_tooltip', 'y_axis_zero'),
             ('y_log_scale', 'contribution'),
             ('x_axis_format', 'y_axis_format'),
-            ('x_axis_showminmax'),
+            ('x_axis_showminmax', 'show_controls'),
             ('line_interpolation', 'stacked_style'),
         ), }] + [NVD3TimeSeriesViz.fieldsets[2]]
 
@@ -1153,7 +1162,10 @@ class DistributionBarViz(DistributionPieViz):
             'metrics',
             'row_limit',
             ('show_legend', 'bar_stacked'),
-            ('y_axis_format', None),
+            ('y_axis_format', 'bottom_margin'),
+            ('x_axis_label', 'y_axis_label'),
+            ('reduce_x_ticks', 'contribution'),
+            ('show_controls', None),
         )
     },)
     form_overrides = {
@@ -1192,6 +1204,10 @@ class DistributionBarViz(DistributionPieViz):
             index=self.groupby,
             columns=columns,
             values=self.metrics)
+        if fd.get("contribution"):
+            pt = pt.fillna(0)
+            pt = pt.T
+            pt = (pt / pt.sum()).T
         pt = pt.reindex(row.index)
         return pt
 
@@ -1650,6 +1666,176 @@ class HorizonViz(NVD3TimeSeriesViz):
         ), }]
 
 
+class MapboxViz(BaseViz):
+
+    """Rich maps made with Mapbox"""
+
+    viz_type = "mapbox"
+    verbose_name = _("Mapbox")
+    is_timeseries = False
+    credits = (
+        '<a href=https://www.mapbox.com/mapbox-gl-js/api/>Mapbox GL JS</a>')
+    fieldsets = ({
+        'label': None,
+        'fields': (
+            ('all_columns_x', 'all_columns_y'),
+            'clustering_radius',
+            'row_limit',
+            'groupby',
+            'render_while_dragging',
+        )
+    }, {
+        'label': 'Points',
+        'fields': (
+            'point_radius',
+            'point_radius_unit',
+        )
+    }, {
+        'label': 'Labelling',
+        'fields': (
+            'mapbox_label',
+            'pandas_aggfunc',
+        )
+    }, {
+        'label': 'Visual Tweaks',
+        'fields': (
+            'mapbox_style',
+            'global_opacity',
+            'mapbox_color',
+        )
+    }, {
+        'label': 'Viewport',
+        'fields': (
+            'viewport_longitude',
+            'viewport_latitude',
+            'viewport_zoom',
+        )
+    },)
+
+    form_overrides = {
+        'all_columns_x': {
+            'label': 'Longitude',
+            'description': "Column containing longitude data",
+        },
+        'all_columns_y': {
+            'label': 'Latitude',
+            'description': "Column containing latitude data",
+        },
+        'pandas_aggfunc': {
+            'label': 'Cluster label aggregator',
+            'description': _(
+                "Aggregate function applied to the list of points "
+                "in each cluster to produce the cluster label."),
+        },
+        'rich_tooltip': {
+            'label': 'Tooltip',
+            'description': _(
+                "Show a tooltip when hovering over points and clusters "
+                "describing the label"),
+        },
+        'groupby': {
+            'description': _(
+                "One or many fields to group by. If grouping, latitude "
+                "and longitude columns must be present."),
+        },
+    }
+
+    def query_obj(self):
+        d = super(MapboxViz, self).query_obj()
+        fd = self.form_data
+        label_col = fd.get('mapbox_label')
+
+        if not fd.get('groupby'):
+            d['columns'] = [fd.get('all_columns_x'), fd.get('all_columns_y')]
+
+            if label_col and len(label_col) >= 1:
+                if label_col[0] == "count":
+                    raise Exception(
+                        "Must have a [Group By] column to have 'count' as the [Label]")
+                d['columns'].append(label_col[0])
+
+            if fd.get('point_radius') != 'Auto':
+                d['columns'].append(fd.get('point_radius'))
+
+            d['columns'] = list(set(d['columns']))
+        else:
+            # Ensuring columns chosen are all in group by
+            if (label_col and len(label_col) >= 1 and
+                    label_col[0] != "count" and
+                    label_col[0] not in fd.get('groupby')):
+                raise Exception(
+                    "Choice of [Label] must be present in [Group By]")
+
+            if (fd.get("point_radius") != "Auto" and
+                    fd.get("point_radius") not in fd.get('groupby')):
+                raise Exception(
+                    "Choice of [Point Radius] must be present in [Group By]")
+
+            if (fd.get('all_columns_x') not in fd.get('groupby') or
+                    fd.get('all_columns_y') not in fd.get('groupby')):
+                raise Exception(
+                    "[Longitude] and [Latitude] columns must be present in [Group By]")
+        return d
+
+    def get_data(self):
+        df = self.get_df()
+        fd = self.form_data
+        label_col = fd.get('mapbox_label')
+        custom_metric = label_col and len(label_col) >= 1
+        metric_col = [None] * len(df.index)
+        if custom_metric:
+            if label_col[0] == fd.get('all_columns_x'):
+                metric_col = df[fd.get('all_columns_x')]
+            elif label_col[0] == fd.get('all_columns_y'):
+                metric_col = df[fd.get('all_columns_y')]
+            else:
+                metric_col = df[label_col[0]]
+        point_radius_col = (
+            [None] * len(df.index)
+            if fd.get("point_radius") == "Auto"
+            else df[fd.get("point_radius")])
+
+        # using geoJSON formatting
+        geo_json = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "metric": metric,
+                        "radius": point_radius,
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [lon, lat],
+                    }
+                }
+                for lon, lat, metric, point_radius
+                in zip(
+                    df[fd.get('all_columns_x')],
+                    df[fd.get('all_columns_y')],
+                    metric_col, point_radius_col)
+            ]
+        }
+
+        return {
+            "geoJSON": geo_json,
+            "customMetric": custom_metric,
+            "mapboxApiKey": config.get('MAPBOX_API_KEY'),
+            "mapStyle": fd.get("mapbox_style"),
+            "aggregatorName": fd.get("pandas_aggfunc"),
+            "clusteringRadius": fd.get("clustering_radius"),
+            "pointRadiusUnit": fd.get("point_radius_unit"),
+            "globalOpacity": fd.get("global_opacity"),
+            "viewportLongitude": fd.get("viewport_longitude"),
+            "viewportLatitude": fd.get("viewport_latitude"),
+            "viewportZoom": fd.get("viewport_zoom"),
+            "renderWhileDragging": fd.get("render_while_dragging"),
+            "tooltip": fd.get("rich_tooltip"),
+            "color": fd.get("mapbox_color"),
+        }
+
+
 viz_types_list = [
     TableViz,
     PivotTableViz,
@@ -1676,6 +1862,7 @@ viz_types_list = [
     TreemapViz,
     CalHeatmapViz,
     HorizonViz,
+    MapboxViz,
 ]
 
 viz_types = OrderedDict([(v.viz_type, v) for v in viz_types_list

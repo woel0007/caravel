@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
+    <OptionsSetting value="true" id="Add" />
+    <OptionsSetting value="true" id="Remove" />
+    <OptionsSetting value="true" id="Checkout" />
+    <OptionsSetting value="true" id="Update" />
+    <OptionsSetting value="true" id="Status" />
+    <OptionsSetting value="true" id="Edit" />
+    <ConfirmationsSetting value="0" id="Add" />
+    <ConfirmationsSetting value="0" id="Remove" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 2.7.10 virtualenv at ~/Documents/sourceCode/caravel/caravel" project-jdk-type="Python SDK" />
+  <component name="PyConsoleOptionsProvider">
+    <option name="myPythonConsoleState">
+      <console-settings sdk-home="/usr/bin/python">
+        <envs>
+          <env key="PYTHONPATH" value="/Users/opjxw0/Applications/spark-1.6.0-bin-hadoop2.3/python" />
+          <env key="SPARK_HOME" value="/Users/opjxw0/Applications/spark-1.6.0-bin-hadoop2.3" />
+        </envs>
+        <option name="mySdkHome" value="/usr/bin/python" />
+        <option name="myEnvs">
+          <map>
+            <entry key="PYTHONPATH" value="$USER_HOME$/Applications/spark-1.6.0-bin-hadoop2.3/python" />
+            <entry key="SPARK_HOME" value="$USER_HOME$/Applications/spark-1.6.0-bin-hadoop2.3" />
+          </map>
+        </option>
+      </console-settings>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+</project>

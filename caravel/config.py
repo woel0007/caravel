@@ -50,10 +50,10 @@ SHOW_STACKTRACE = True
 # GLOBALS FOR APP Builder
 # ------------------------------
 # Uncomment to setup Your App name
-APP_NAME = "Caravel"
+APP_NAME = "Greenfield"
 
 # Uncomment to setup Setup an App icon
-APP_ICON = "/static/assets/images/caravel_logo.png"
+APP_ICON = "/static/assets/images/greenfield_logo.png"
 
 # Druid query timezone
 # tz.tzutc() : Using utc timezone

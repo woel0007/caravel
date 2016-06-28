@@ -431,8 +431,8 @@ class TableModelView(CaravelModelView, DeleteMixin):  # noqa
 
 appbuilder.add_view(
     TableModelView,
-    "Tables",
-    label=__("Tables"),
+    "Datasets",
+    label=__("Datasets"),
     category="Sources",
     category_label=__("Sources"),
     icon='fa-table',)

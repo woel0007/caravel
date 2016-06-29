@@ -16,6 +16,14 @@ import functools
 import pandas as pd
 import sqlalchemy as sqla
 
+# JW Edits
+import pyodbc
+from sqlalchemy.dialects import registry
+
+registry.register("teradata", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
+registry.register("teradata.pyodbc", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
+#########
+
 from flask import (
     g, request, redirect, flash, Response, render_template, Markup)
 from flask_appbuilder import ModelView, CompactCRUDMixin, BaseView, expose

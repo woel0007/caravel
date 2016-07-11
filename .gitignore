@@ -25,4 +25,13 @@ app.db
 node_modules
 npm-debug.log
 
-.idea/workspace.xml
+
+# Remove PyCharm-specific files.
+.idea/
+
+# Remove virtualenv-controlled files.
+caravel/lib/python2.7/site-packages
+# Remove other 3rd party files.
+caravel/bin
+caravel/bin/caravel
+caravel/bin/easy_install

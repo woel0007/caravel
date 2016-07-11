@@ -132,9 +132,9 @@ class CssTemplate(Model, AuditMixinNullable):
 
 
 slice_user = Table('slice_user', Model.metadata,
-    Column('id', Integer, primary_key=True),
-    Column('user_id', Integer, ForeignKey('ab_user.id')),
-    Column('slice_id', Integer, ForeignKey('slices.id'))
+             Column('id', Integer, primary_key=True),
+             Column('user_id', Integer, ForeignKey('ab_user.id')),
+             Column('slice_id', Integer, ForeignKey('slices.id'))
 )
 
 

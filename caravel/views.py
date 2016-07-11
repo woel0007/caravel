@@ -17,11 +17,11 @@ import pandas as pd
 import sqlalchemy as sqla
 
 # JW Edits
-import pyodbc
-from sqlalchemy.dialects import registry
-
-registry.register("teradata", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
-registry.register("teradata.pyodbc", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
+# import pyodbc
+# from sqlalchemy.dialects import registry
+#
+# registry.register("teradata", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
+# registry.register("teradata.pyodbc", "sqlalchemy_teradata.pyodbc", "teradataDialect_pyodbc")
 #########
 
 from flask import (
@@ -440,6 +440,7 @@ class TableModelView(CaravelModelView, DeleteMixin):  # noqa
 appbuilder.add_view(
     TableModelView,
     "Datasets",
+    #href="http://www.google.com",   ## href is an optional attribute that can be used to directly link to a different URL.
     label=__("Datasets"),
     category="Sources",
     category_label=__("Sources"),
